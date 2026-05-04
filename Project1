@@ -1,0 +1,308 @@
+import tkinter as tk
+from tkinter import ttk
+import re
+import random
+import math
+
+# ─────────────────────────────────────────
+#  Color Palette
+# ─────────────────────────────────────────
+BG_DARK    = "#0a0e1a"
+BG_CARD    = "#111827"
+BG_INPUT   = "#0d1526"
+BORDER     = "#1f2d44"
+ACCENT     = "#00c8ff"
+TEXT_DIM   = "#4a6280"
+TEXT_LIGHT = "#e2e8f0"
+
+LEVELS = [
+    ("TOO WEAK",    "#ef4444"),
+    ("WEAK",        "#f97316"),
+    ("FAIR",        "#eab308"),
+    ("MODERATE",    "#84cc16"),
+    ("STRONG",      "#22c55e"),
+    ("VERY STRONG", "#00c8ff"),
+]
+
+TIPS = [
+    "Add uppercase letters to improve strength",
+    "Mix numbers and symbols for better security",
+    "Try making it 12+ characters long",
+    "Add a special symbol  (!@#$...)",
+    "Great! Add more variety to max out",
+    "Excellent! Your password is very strong 🔐",
+]
+
+# ─────────────────────────────────────────
+#  Criteria checker
+# ─────────────────────────────────────────
+CRITERIA = [
+    ("8+ Characters",  lambda p: len(p) >= 8),
+    ("Uppercase",      lambda p: bool(re.search(r'[A-Z]', p))),
+    ("Lowercase",      lambda p: bool(re.search(r'[a-z]', p))),
+    ("Number",         lambda p: bool(re.search(r'[0-9]', p))),
+    ("Symbol",         lambda p: bool(re.search(r'[!@#$%^&*()\-_=+\[\]{};:\'",.<>/?\\|`~]', p))),
+    ("12+ Length",     lambda p: len(p) >= 12),
+]
+
+
+class Particle:
+    def __init__(self, canvas, color):
+        self.canvas = canvas
+        self.color  = color
+        x = random.randint(20, 380)
+        y = random.randint(300, 420)
+        r = random.uniform(2, 4)
+        self.vy    = random.uniform(-2.5, -1.2)
+        self.vx    = random.uniform(-0.5, 0.5)
+        self.alpha = 1.0
+        self.life  = 0
+        self.max_life = random.randint(40, 70)
+        self.oval  = canvas.create_oval(x-r, y-r, x+r, y+r, fill=color, outline="")
+
+    def step(self):
+        self.life += 1
+        self.alpha = max(0, 1 - self.life / self.max_life)
+        x1, y1, x2, y2 = self.canvas.coords(self.oval)
+        cx = (x1+x2)/2 + self.vx
+        cy = (y1+y2)/2 + self.vy
+        r  = (x2-x1)/2
+        self.canvas.coords(self.oval, cx-r, cy-r, cx+r, cy+r)
+        # fade by shrinking — canvas has no alpha, we simulate with size
+        if self.life % 8 == 0 and r > 0.5:
+            self.canvas.coords(self.oval, cx-r*0.85, cy-r*0.85, cx+r*0.85, cy+r*0.85)
+        return self.life < self.max_life
+
+    def destroy(self):
+        try:
+            self.canvas.delete(self.oval)
+        except Exception:
+            pass
+
+
+class PasswordCheckerApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Password Strength Checker")
+        self.root.geometry("460x580")
+        self.root.resizable(False, False)
+        self.root.configure(bg=BG_DARK)
+
+        self.show_password = False
+        self.particles     = []
+        self.bar_target    = 0
+        self.bar_current   = 0
+        self.particle_color = ACCENT
+
+        self._build_ui()
+        self._animate_loop()
+
+    # ── UI Construction ─────────────────────────────
+    def _build_ui(self):
+        # Title
+        tk.Label(self.root, text="🔐  PASSWORD VAULT",
+                 font=("Courier New", 14, "bold"),
+                 bg=BG_DARK, fg=ACCENT).pack(pady=(24, 4))
+
+        tk.Label(self.root, text="Check your password strength",
+                 font=("Segoe UI", 9), bg=BG_DARK, fg=TEXT_DIM).pack(pady=(0, 16))
+
+        # Card frame
+        card = tk.Frame(self.root, bg=BG_CARD, bd=0, highlightthickness=1,
+                        highlightbackground=BORDER)
+        card.pack(padx=28, pady=0, fill="x")
+
+        inner = tk.Frame(card, bg=BG_CARD)
+        inner.pack(padx=20, pady=20, fill="x")
+
+        # Password input row
+        inp_frame = tk.Frame(inner, bg=BG_INPUT, highlightthickness=1,
+                             highlightbackground=BORDER)
+        inp_frame.pack(fill="x", pady=(0, 14))
+
+        self.pwd_var = tk.StringVar()
+        self.pwd_var.trace_add("write", self._on_change)
+
+        self.entry = tk.Entry(inp_frame, textvariable=self.pwd_var,
+                              show="●", font=("Consolas", 15),
+                              bg=BG_INPUT, fg=TEXT_LIGHT,
+                              insertbackground=ACCENT,
+                              relief="flat", bd=8,
+                              highlightthickness=0)
+        self.entry.pack(side="left", fill="x", expand=True)
+
+        self.eye_btn = tk.Button(inp_frame, text="👁", font=("Segoe UI", 12),
+                                 bg=BG_INPUT, fg=TEXT_DIM,
+                                 relief="flat", bd=0, cursor="hand2",
+                                 activebackground=BG_INPUT,
+                                 command=self._toggle_visibility)
+        self.eye_btn.pack(side="right", padx=8)
+
+        # Canvas for strength bar + particles
+        self.canvas = tk.Canvas(inner, height=80, bg=BG_CARD,
+                                highlightthickness=0)
+        self.canvas.pack(fill="x", pady=(0, 12))
+        self._draw_bar_track()
+
+        # Strength label
+        self.strength_label = tk.Label(inner, text="—",
+                                       font=("Courier New", 11, "bold"),
+                                       bg=BG_CARD, fg=TEXT_DIM)
+        self.strength_label.pack(anchor="e", pady=(0, 12))
+
+        # Criteria grid  (2 columns)
+        grid = tk.Frame(inner, bg=BG_CARD)
+        grid.pack(fill="x", pady=(0, 14))
+
+        self.crit_labels = []
+        self.crit_dots   = []
+
+        for i, (name, _) in enumerate(CRITERIA):
+            row, col = divmod(i, 2)
+            cell = tk.Frame(grid, bg=BG_INPUT, highlightthickness=1,
+                            highlightbackground="#1a2540")
+            cell.grid(row=row, column=col, padx=4, pady=4, sticky="ew")
+            grid.columnconfigure(col, weight=1)
+
+            dot = tk.Label(cell, text="●", font=("Segoe UI", 8),
+                           bg=BG_INPUT, fg="#1f3050")
+            dot.pack(side="left", padx=(8, 4), pady=6)
+
+            lbl = tk.Label(cell, text=name, font=("Segoe UI", 10, "bold"),
+                           bg=BG_INPUT, fg=TEXT_DIM)
+            lbl.pack(side="left", pady=6)
+
+            self.crit_dots.append(dot)
+            self.crit_labels.append(lbl)
+
+        # Separator
+        sep = tk.Frame(inner, bg=BORDER, height=1)
+        sep.pack(fill="x", pady=(4, 10))
+
+        # Score row
+        score_row = tk.Frame(inner, bg=BG_CARD)
+        score_row.pack(fill="x")
+
+        tk.Label(score_row, text="STRENGTH SCORE",
+                 font=("Segoe UI", 9, "bold"), bg=BG_CARD,
+                 fg=TEXT_DIM).pack(side="left")
+
+        self.score_val = tk.Label(score_row, text="0 / 6",
+                                  font=("Courier New", 16, "bold"),
+                                  bg=BG_CARD, fg=ACCENT)
+        self.score_val.pack(side="right")
+
+        # Tip text
+        self.tip_label = tk.Label(self.root,
+                                   text="Start typing your password above",
+                                   font=("Segoe UI", 9), bg=BG_DARK,
+                                   fg=TEXT_DIM, wraplength=400)
+        self.tip_label.pack(pady=(12, 4))
+
+    def _draw_bar_track(self):
+        self.canvas.delete("all")
+        w = self.canvas.winfo_reqwidth() or 400
+        # Track
+        self.canvas.create_rounded_rect = self._rrect
+        self._rrect(8, 30, w-8, 46, 7, fill="#1a2540", outline="")
+        # Fill bar (starts at 0)
+        self.bar_rect = self._rrect(8, 30, 8, 46, 7, fill=ACCENT, outline="", tags="bar")
+
+    def _rrect(self, x1, y1, x2, y2, r, **kw):
+        points = [
+            x1+r, y1, x2-r, y1,
+            x2, y1, x2, y1+r,
+            x2, y2-r, x2, y2,
+            x2-r, y2, x1+r, y2,
+            x1, y2, x1, y2-r,
+            x1, y1+r, x1, y1,
+        ]
+        return self.canvas.create_polygon(points, smooth=True, **kw)
+
+    # ── Logic ───────────────────────────────────────
+    def _on_change(self, *_):
+        pwd   = self.pwd_var.get()
+        score = sum(1 for _, fn in CRITERIA if fn(pwd))
+
+        # Update criteria tiles
+        for i, (_, fn) in enumerate(CRITERIA):
+            passed = fn(pwd)
+            self.crit_dots[i].config(fg="#34d399" if passed else "#1f3050")
+            self.crit_labels[i].config(fg="#34d399" if passed else TEXT_DIM)
+
+        if not pwd:
+            self.bar_target = 0
+            self.strength_label.config(text="—", fg=TEXT_DIM)
+            self.score_val.config(text="0 / 6", fg=ACCENT)
+            self.tip_label.config(text="Start typing your password above")
+            return
+
+        pct = int((score / 6) * 100) if score > 0 else 8
+        lv_idx = max(0, score - 1)
+        lv_name, lv_color = LEVELS[lv_idx]
+
+        self.bar_target     = pct
+        self.particle_color = lv_color
+        self.strength_label.config(text=lv_name, fg=lv_color)
+
+        sc_color = ACCENT if score >= 5 else "#22c55e" if score >= 3 else "#f97316"
+        self.score_val.config(text=f"{score} / 6", fg=sc_color)
+        self.tip_label.config(text=TIPS[min(score, 5)], fg=TEXT_DIM)
+
+        # Spawn particles when score is decent
+        if score >= 3:
+            for _ in range(4):
+                self.particles.append(Particle(self.canvas, lv_color))
+
+    def _toggle_visibility(self):
+        self.show_password = not self.show_password
+        self.entry.config(show="" if self.show_password else "●")
+        self.eye_btn.config(text="🙈" if self.show_password else "👁")
+
+    # ── Animation Loop ───────────────────────────────
+    def _animate_loop(self):
+        self._update_bar()
+        self._update_particles()
+        self.root.after(16, self._animate_loop)   # ~60 fps
+
+    def _update_bar(self):
+        diff = self.bar_target - self.bar_current
+        if abs(diff) > 0.3:
+            self.bar_current += diff * 0.12
+        else:
+            self.bar_current = self.bar_target
+
+        try:
+            w = self.canvas.winfo_width() or 400
+            fill_x = 8 + max(0, (w - 16) * self.bar_current / 100)
+
+            # Recolor based on level
+            score = round(self.bar_current / (100/6))
+            lv_color = LEVELS[max(0, min(score-1, 5))][1] if score > 0 else TEXT_DIM
+
+            self.canvas.delete("bar")
+            self._rrect(8, 30, fill_x, 46, 7, fill=lv_color, outline="", tags="bar")
+        except Exception:
+            pass
+
+    def _update_particles(self):
+        alive = []
+        for p in self.particles:
+            if p.step():
+                alive.append(p)
+            else:
+                p.destroy()
+        self.particles = alive
+
+        # Trim to max 40 particles
+        while len(self.particles) > 40:
+            self.particles.pop(0).destroy()
+
+
+# ─────────────────────────────────────────
+#  Entry Point
+# ─────────────────────────────────────────
+if __name__ == "__main__":
+    root = tk.Tk()
+    app  = PasswordCheckerApp(root)
+    root.mainloop()
