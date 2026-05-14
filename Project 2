@@ -1,0 +1,407 @@
+# Futuristic Caesar Cipher GUI for Spyder
+import tkinter as tk
+from tkinter import ttk
+
+
+# ==========================================
+# Caesar Cipher Logic
+# ==========================================
+
+def caesar_encrypt(text, shift):
+    result = ""
+
+    for char in text:
+        if char.isalpha():
+            base = ord('A') if char.isupper() else ord('a')
+            encrypted = chr((ord(char) - base + shift) % 26 + base)
+            result += encrypted
+        else:
+            result += char
+
+    return result
+
+
+# ==========================================
+# Main Functions
+# ==========================================
+
+def process_cipher():
+    text = input_box.get("1.0", tk.END).strip()
+
+    if not text:
+        return
+
+    shift = shift_slider.get()
+
+    encrypted = caesar_encrypt(text, shift)
+    decrypted = caesar_encrypt(encrypted, -shift)
+
+    encrypted_output.config(state="normal")
+    decrypted_output.config(state="normal")
+
+    encrypted_output.delete("1.0", tk.END)
+    decrypted_output.delete("1.0", tk.END)
+
+    encrypted_output.insert(tk.END, encrypted)
+    decrypted_output.insert(tk.END, decrypted)
+
+    encrypted_output.config(state="disabled")
+    decrypted_output.config(state="disabled")
+
+    shift_value.config(text=str(shift))
+
+
+# ==========================================
+# Main Window
+# ==========================================
+
+root = tk.Tk()
+root.title("Caesar Cipher v1.0")
+root.geometry("850x620")
+root.configure(bg="#020617")
+root.resizable(False, False)
+
+
+# ==========================================
+# Fonts and Colors
+# ==========================================
+
+BG = "#020617"
+CARD = "#071426"
+BORDER = "#0ea5e9"
+TEXT = "#e2e8f0"
+CYAN = "#00e5ff"
+GREEN = "#22c55e"
+YELLOW = "#facc15"
+ORANGE = "#f97316"
+
+
+# ==========================================
+# Header
+# ==========================================
+
+header = tk.Frame(root, bg=BG)
+header.pack(fill="x", pady=15)
+
+
+title1 = tk.Label(
+    header,
+    text="CAESAR CIPHER",
+    bg=BG,
+    fg="white",
+    font=("Consolas", 28, "bold")
+)
+title1.pack()
+
+
+title2 = tk.Label(
+    header,
+    text="ENCRYPTION AND DECRYPTION ENGINE v1.0",
+    bg=BG,
+    fg=CYAN,
+    font=("Consolas", 10)
+)
+title2.pack()
+
+
+# ==========================================
+# Status Bar
+# ==========================================
+
+status_frame = tk.Frame(root, bg=CARD, highlightbackground=BORDER, highlightthickness=1)
+status_frame.pack(fill="x", padx=20, pady=10)
+
+
+status = tk.Label(
+    status_frame,
+    text=" SYSTEM ONLINE    |    ALGORITHM: MONOALPHABETIC SUBSTITUTION    |    MODE: ENCRYPT + DECRYPT",
+    bg=CARD,
+    fg=GREEN,
+    font=("Consolas", 10, "bold"),
+    anchor="w",
+    padx=10,
+    pady=8
+)
+status.pack(fill="x")
+
+
+# ==========================================
+# Input Frame
+# ==========================================
+
+input_frame = tk.Frame(root, bg=CARD, highlightbackground=BORDER, highlightthickness=1)
+input_frame.pack(fill="x", padx=20, pady=10)
+
+
+input_title = tk.Label(
+    input_frame,
+    text="// PLAINTEXT INPUT",
+    bg=CARD,
+    fg=CYAN,
+    font=("Consolas", 11, "bold")
+)
+input_title.pack(anchor="w", padx=15, pady=10)
+
+
+input_box = tk.Text(
+    input_frame,
+    height=6,
+    bg="#2b2b2b",
+    fg=TEXT,
+    insertbackground="white",
+    relief="flat",
+    font=("Consolas", 13),
+    padx=15,
+    pady=15
+)
+input_box.pack(fill="x", padx=15, pady=10)
+
+
+# ==========================================
+# Control Panel
+# ==========================================
+
+control_frame = tk.Frame(root, bg=CARD, highlightbackground=BORDER, highlightthickness=1)
+control_frame.pack(fill="x", padx=20, pady=10)
+
+
+control_title = tk.Label(
+    control_frame,
+    text="// SHIFT KEY CONFIGURATION",
+    bg=CARD,
+    fg=CYAN,
+    font=("Consolas", 11, "bold")
+)
+control_title.pack(anchor="w", padx=15, pady=10)
+
+
+slider_frame = tk.Frame(control_frame, bg=CARD)
+slider_frame.pack(fill="x", padx=20, pady=10)
+
+
+shift_value = tk.Label(
+    slider_frame,
+    text="3",
+    bg=CARD,
+    fg=CYAN,
+    font=("Consolas", 24, "bold")
+)
+shift_value.pack(side="left", padx=10)
+
+
+shift_slider = tk.Scale(
+    slider_frame,
+    from_=1,
+    to=25,
+    orient="horizontal",
+    bg=CARD,
+    fg="white",
+    troughcolor="#1e293b",
+    highlightthickness=0,
+    activebackground=CYAN,
+    font=("Consolas", 9),
+    length=250
+)
+shift_slider.set(3)
+shift_slider.pack(side="left", padx=10)
+
+
+# ==========================================
+# Buttons
+# ==========================================
+
+button_frame = tk.Frame(slider_frame, bg=CARD)
+button_frame.pack(side="right", padx=10)
+
+
+encrypt_btn = tk.Button(
+    button_frame,
+    text="CAESAR",
+    command=process_cipher,
+    bg="#111827",
+    fg="white",
+    activebackground=CYAN,
+    activeforeground="black",
+    font=("Consolas", 11, "bold"),
+    relief="flat",
+    padx=20,
+    pady=10,
+    cursor="hand2"
+)
+encrypt_btn.pack(side="left", padx=8)
+
+
+clear_btn = tk.Button(
+    button_frame,
+    text="CLEAR",
+    command=lambda: input_box.delete("1.0", tk.END),
+    bg="#111827",
+    fg="white",
+    activebackground="#ef4444",
+    activeforeground="white",
+    font=("Consolas", 11, "bold"),
+    relief="flat",
+    padx=20,
+    pady=10,
+    cursor="hand2"
+)
+clear_btn.pack(side="left", padx=8)
+
+
+# ==========================================
+# Visualization Panel
+# ==========================================
+
+visual_frame = tk.Frame(root, bg=CARD, highlightbackground=BORDER, highlightthickness=1)
+visual_frame.pack(fill="x", padx=20, pady=10)
+
+
+visual_title = tk.Label(
+    visual_frame,
+    text="// SUBSTITUTION TABLE VISUALIZATION",
+    bg=CARD,
+    fg=CYAN,
+    font=("Consolas", 11, "bold")
+)
+visual_title.pack(anchor="w", padx=15, pady=10)
+
+
+alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+shifted = alphabet[3:] + alphabet[:3]
+
+
+visual_text = tk.Label(
+    visual_frame,
+    text=f"ORIG : {' '.join(alphabet)}\nSHIFT: {' '.join(shifted)}",
+    bg=CARD,
+    fg="white",
+    justify="left",
+    font=("Consolas", 10)
+)
+visual_text.pack(anchor="w", padx=20, pady=10)
+
+
+# ==========================================
+# Stats Cards
+# ==========================================
+
+stats_frame = tk.Frame(root, bg=BG)
+stats_frame.pack(fill="x", padx=20, pady=10)
+
+
+for title, value, color in [
+    ("CHARACTERS", "0", CYAN),
+    ("SHIFT KEY", "3", ORANGE),
+    ("PROCESSED", "0", GREEN)
+]:
+
+    card = tk.Frame(stats_frame, bg=CARD, highlightbackground=BORDER, highlightthickness=1)
+    card.pack(side="left", expand=True, fill="x", padx=10)
+
+    val = tk.Label(
+        card,
+        text=value,
+        bg=CARD,
+        fg=color,
+        font=("Consolas", 24, "bold")
+    )
+    val.pack(pady=(15, 5))
+
+    lbl = tk.Label(
+        card,
+        text=title,
+        bg=CARD,
+        fg="#94a3b8",
+        font=("Consolas", 10)
+    )
+    lbl.pack(pady=(0, 15))
+
+
+# ==========================================
+# Output Panels
+# ==========================================
+
+output_container = tk.Frame(root, bg=BG)
+output_container.pack(fill="both", expand=True, padx=20, pady=10)
+
+
+# Encrypted Panel
+
+encrypted_panel = tk.Frame(output_container, bg=CARD, highlightbackground=YELLOW, highlightthickness=1)
+encrypted_panel.pack(side="left", expand=True, fill="both", padx=10)
+
+
+encrypted_title = tk.Label(
+    encrypted_panel,
+    text="// ENCRYPTED OUTPUT",
+    bg=CARD,
+    fg=YELLOW,
+    font=("Consolas", 11, "bold")
+)
+encrypted_title.pack(anchor="w", padx=15, pady=10)
+
+
+encrypted_output = tk.Text(
+    encrypted_panel,
+    height=10,
+    bg="#2b2b2b",
+    fg=TEXT,
+    relief="flat",
+    font=("Consolas", 12),
+    padx=15,
+    pady=15,
+    state="disabled"
+)
+encrypted_output.pack(fill="both", expand=True, padx=15, pady=10)
+
+
+# Decrypted Panel
+
+decrypted_panel = tk.Frame(output_container, bg=CARD, highlightbackground=GREEN, highlightthickness=1)
+decrypted_panel.pack(side="left", expand=True, fill="both", padx=10)
+
+
+decrypted_title = tk.Label(
+    decrypted_panel,
+    text="// DECRYPTED OUTPUT",
+    bg=CARD,
+    fg=GREEN,
+    font=("Consolas", 11, "bold")
+)
+decrypted_title.pack(anchor="w", padx=15, pady=10)
+
+
+decrypted_output = tk.Text(
+    decrypted_panel,
+    height=10,
+    bg="#2b2b2b",
+    fg=TEXT,
+    relief="flat",
+    font=("Consolas", 12),
+    padx=15,
+    pady=15,
+    state="disabled"
+)
+decrypted_output.pack(fill="both", expand=True, padx=15, pady=10)
+
+
+# ==========================================
+# Footer
+# ==========================================
+
+footer = tk.Label(
+    root,
+    text="PYTHON TKINTER CYBER SECURITY INTERFACE",
+    bg=BG,
+    fg="#64748b",
+    font=("Consolas", 10)
+)
+footer.pack(pady=15)
+
+
+# ==========================================
+# Run
+# ==========================================
+
+root.mainloop()
+
